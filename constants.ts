@@ -189,3 +189,24 @@ export const DEFAULT_SPEECH_SETTINGS = {
     pitch: 1.0,     // Pitch: 0 to 2
     volume: 1.0,    // Volume: 0 to 1
 };
+
+// TTS Engine options
+export const TTS_ENGINES = {
+    webSpeech: {
+        id: 'webSpeech',
+        name: 'Web Speech API',
+        description: 'Miễn phí, chạy trên browser',
+        icon: '🎤',
+        isFree: true,
+        features: ['Offline', 'Không giới hạn', 'Giọng địa phương'],
+    },
+    openai: {
+        id: 'openai',
+        name: 'OpenAI TTS',
+        description: 'Chất lượng cao, tiếng Anh tốt',
+        icon: '🤖',
+        isFree: false,
+        features: ['Chất lượng cao', '6 giọng', 'Tiếng Anh chuẩn'],
+        cost: '$15-30/1M ký tự',
+    },
+};
