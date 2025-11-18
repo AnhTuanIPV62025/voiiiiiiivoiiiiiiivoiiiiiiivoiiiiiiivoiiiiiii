@@ -22,10 +22,10 @@ const MoonIcon = () => (
 export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme }) => (
   <header className="relative text-center p-4 mb-6 md:mb-10">
     <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-teal-400 dark:from-blue-400 dark:to-teal-300">
-      AI Text to Speech
+      Trình Đọc Văn Bản AI
     </h1>
     <p className="text-slate-600 dark:text-slate-400 mt-3 text-lg">
-      Biến văn bản thành giọng nói tự nhiên với Gemini.
+      Biến văn bản thành giọng nói tự nhiên - Miễn phí, không cần API key!
     </p>
     <div className="absolute top-0 right-0">
         <button
