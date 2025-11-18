@@ -1,0 +1,5 @@
+{
+  "name": "AI Text to Speech Generator",
+  "description": "A web application that converts text into natural-sounding speech using the Gemini API. Users can input text, select from a variety of voices, and generate high-quality audio.",
+  "requestFramePermissions": []
+}
