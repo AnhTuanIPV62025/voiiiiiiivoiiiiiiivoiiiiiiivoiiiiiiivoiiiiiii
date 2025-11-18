@@ -2,17 +2,19 @@ export interface Voice {
     id: string;
     name: string;
     description: string;
-    baseVoice?: string; // To handle aliased voices like the custom Vietnamese one
+    lang?: string;
+    isDefault?: boolean;
 }
 
-export const VOICES: Voice[] = [
-  { id: 'Mai', name: 'Mai (Việt Nam)', description: 'Nữ - Kể chuyện', baseVoice: 'Kore' },
-  { id: 'Zephyr', name: 'Zephyr', description: 'Nam, Thân thiện' },
-  { id: 'Kore', name: 'Kore', description: 'Nữ, Điềm tĩnh' },
-  { id: 'Puck', name: 'Puck', description: 'Nam, Năng động' },
-  { id: 'Charon', name: 'Charon', description: 'Nam, Giọng trầm' },
-  { id: 'Fenrir', name: 'Fenrir', description: 'Nữ, Uy quyền' },
-  { id: 'Ares', name: 'Ares', description: 'Nam, Quyết đoán' },
-  { id: 'Charna', name: 'Charna', description: 'Nữ, Tinh nghịch' },
-  { id: 'Chiron', name: 'Chiron', description: 'Nam, Trí tuệ' },
-];
+// These are placeholder voices that will be replaced by browser voices at runtime
+export const VOICES: Voice[] = [];
+
+// Default text for Vietnamese
+export const DEFAULT_TEXT = 'Xin chào! Chào mừng bạn đến với trình tạo Giọng nói AI. Bạn có thể nhập văn bản và chọn giọng nói bên dưới để nghe.';
+
+// Settings for speech synthesis
+export const SPEECH_SETTINGS = {
+  rate: 1.0,      // Speed: 0.1 to 10
+  pitch: 1.0,     // Pitch: 0 to 2
+  volume: 1.0,    // Volume: 0 to 1
+};

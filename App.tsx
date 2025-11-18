@@ -1,26 +1,60 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { generateSpeech } from './services/geminiService';
-import { VOICES } from './constants';
-import { decode } from './utils/audio';
+import { generateSpeech, getAvailableVoices, stopSpeech } from './services/speechService';
+import { Voice, DEFAULT_TEXT, SPEECH_SETTINGS } from './constants';
 import { Header } from './components/Header';
 import { VoiceSelector } from './components/VoiceSelector';
 import { Loader } from './components/Loader';
 
 declare const mammoth: any;
 
-const MAX_TEXT_LENGTH = 1000;
+const MAX_TEXT_LENGTH = 5000;
 
 type Theme = 'light' | 'dark';
 
 const App: React.FC = () => {
-    const [text, setText] = useState<string>('(Xin chào! Chào mừng bạn đến với trình tạo Giọng nói AI. Với sức mạnh từ Gemini, bạn có thể biến văn bản của mình thành âm thanh sống động. Hãy nhập nội dung và chọn một giọng nói bên dưới để bắt đầu.)');
-    const [selectedVoice, setSelectedVoice] = useState<string>(VOICES[0].id);
+    const [text, setText] = useState<string>(DEFAULT_TEXT);
+    const [voices, setVoices] = useState<Voice[]>([]);
+    const [selectedVoice, setSelectedVoice] = useState<string>('');
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [audioUrl, setAudioUrl] = useState<string | null>(null);
+    const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Load available voices from browser
+    useEffect(() => {
+        const loadVoices = async () => {
+            try {
+                const browserVoices = await getAvailableVoices();
+                const voiceList: Voice[] = browserVoices.map(v => ({
+                    id: v.name,
+                    name: v.name,
+                    description: `${v.lang} - ${v.localService ? 'Local' : 'Online'}`,
+                    lang: v.lang,
+                    isDefault: v.default
+                }));
+
+                // Prioritize Vietnamese voices
+                const viVoices = voiceList.filter(v => v.lang?.startsWith('vi'));
+                const otherVoices = voiceList.filter(v => !v.lang?.startsWith('vi'));
+                const sortedVoices = [...viVoices, ...otherVoices];
+
+                setVoices(sortedVoices);
+
+                // Set default voice
+                if (sortedVoices.length > 0) {
+                    const defaultVoice = sortedVoices.find(v => v.isDefault) || sortedVoices[0];
+                    setSelectedVoice(defaultVoice.id);
+                }
+            } catch (err) {
+                console.error('Error loading voices:', err);
+                setError('Không thể tải danh sách giọng nói. Vui lòng thử lại.');
+            }
+        };
+
+        loadVoices();
+    }, []);
 
     useEffect(() => {
         const root = window.document.documentElement;
@@ -29,37 +63,29 @@ const App: React.FC = () => {
         localStorage.setItem('theme', theme);
     }, [theme]);
 
-    useEffect(() => {
-        return () => {
-            if (audioUrl) {
-                URL.revokeObjectURL(audioUrl);
-            }
-        };
-    }, [audioUrl]);
-
     const handleGenerate = useCallback(async () => {
-        if (!text.trim() || isLoading) return;
+        if (!text.trim() || isLoading || isSpeaking) return;
 
         setIsLoading(true);
+        setIsSpeaking(true);
         setError(null);
-        if (audioUrl) {
-            URL.revokeObjectURL(audioUrl);
-        }
-        setAudioUrl(null);
 
         try {
-            const base64Audio = await generateSpeech(text, selectedVoice);
-            const audioBytes = decode(base64Audio);
-            const blob = new Blob([audioBytes], { type: 'audio/mpeg' });
-            const url = URL.createObjectURL(blob);
-            setAudioUrl(url);
+            await generateSpeech(text, selectedVoice, SPEECH_SETTINGS);
         } catch (err) {
             console.error("Error generating speech:", err);
             setError(err instanceof Error ? err.message : 'Đã xảy ra lỗi không xác định. Vui lòng thử lại.');
         } finally {
             setIsLoading(false);
+            setIsSpeaking(false);
         }
-    }, [text, selectedVoice, isLoading, audioUrl]);
+    }, [text, selectedVoice, isLoading, isSpeaking]);
+
+    const handleStop = useCallback(() => {
+        stopSpeech();
+        setIsSpeaking(false);
+        setIsLoading(false);
+    }, []);
 
     const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         if (e.target.value.length <= MAX_TEXT_LENGTH) {
@@ -147,27 +173,37 @@ const App: React.FC = () => {
                         </div>
                     </div>
                     
-                    <VoiceSelector voices={VOICES} selectedVoice={selectedVoice} onSelectVoice={setSelectedVoice} />
+                    <VoiceSelector voices={voices} selectedVoice={selectedVoice} onSelectVoice={setSelectedVoice} />
 
                     <div className="flex flex-col items-center space-y-6">
-                        <button
-                            onClick={handleGenerate}
-                            disabled={isLoading || !text.trim()}
-                            className="w-full md:w-auto flex items-center justify-center px-8 py-4 bg-blue-600 text-white font-bold text-lg rounded-full hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-500/50 shadow-lg"
-                        >
-                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.636 5.636a9 9 0 0112.728 0M8.464 15.536a5 5 0 010-7.072" /></svg>
-                            {isLoading ? 'Đang tạo...' : 'Tạo giọng nói'}
-                        </button>
+                        <div className="flex gap-4">
+                            <button
+                                onClick={handleGenerate}
+                                disabled={isLoading || !text.trim() || voices.length === 0}
+                                className="flex items-center justify-center px-8 py-4 bg-blue-600 text-white font-bold text-lg rounded-full hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-500/50 shadow-lg"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.636 5.636a9 9 0 0112.728 0M8.464 15.536a5 5 0 010-7.072" /></svg>
+                                {isLoading ? 'Đang đọc...' : 'Đọc văn bản'}
+                            </button>
+
+                            {isSpeaking && (
+                                <button
+                                    onClick={handleStop}
+                                    className="flex items-center justify-center px-8 py-4 bg-red-600 text-white font-bold text-lg rounded-full hover:bg-red-700 transition-all duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-red-500/50 shadow-lg"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" /></svg>
+                                    Dừng
+                                </button>
+                            )}
+                        </div>
 
                         {isLoading && <Loader />}
-                        
+
                         {error && <div className="text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/50 p-3 rounded-lg text-center">{error}</div>}
 
-                        {audioUrl && (
-                            <div className="w-full mt-4">
-                                <audio controls autoPlay src={audioUrl} className="w-full accent-blue-500">
-                                    Trình duyệt của bạn không hỗ trợ phát âm thanh.
-                                </audio>
+                        {voices.length === 0 && (
+                            <div className="text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/50 p-3 rounded-lg text-center">
+                                Đang tải danh sách giọng nói...
                             </div>
                         )}
                     </div>
