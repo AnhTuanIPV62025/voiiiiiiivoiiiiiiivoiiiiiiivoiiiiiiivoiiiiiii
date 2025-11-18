@@ -1,12 +1,49 @@
-# 🚀 Hướng Dẫn Deploy trên VPS Ubuntu 22 (1CPU-1GB)
+# 🚀 Hướng Dẫn Deploy trên VPS (1CPU-1GB)
 
 ## 📋 Yêu cầu
 
-- VPS Ubuntu 22.04
-- 1 CPU, 1GB RAM (minimum)
-- Quyền sudo
+- **VPS** với một trong các OS sau:
+  - Ubuntu 22.04 LTS ⭐ (Khuyến nghị)
+  - Ubuntu 24.04 LTS
+  - Debian 11 (Bullseye)
+  - Debian 12 (Bookworm)
+- **Cấu hình tối thiểu:** 1 CPU, 1GB RAM
+- **Quyền:** sudo
 
-## 🔧 Bước 1: Chuẩn bị VPS
+> **Lưu ý:** Script `install.sh` tự động phát hiện OS và cài đặt phù hợp
+
+---
+
+## ⚡ Cách Nhanh Nhất: Sử dụng Auto Installer
+
+**Chỉ 1 lệnh - tự động cài đặt toàn bộ:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AnhTuanIPV62025/voiiiiiiivoiiiiiiivoiiiiiiivoiiiiiiivoiiiiiii/claude/adapt-code-web-01QBd2N1xScVK2PHF8CtpxsK/install.sh | sudo bash
+```
+
+Script sẽ tự động:
+- ✅ Phát hiện OS (Ubuntu/Debian)
+- ✅ Cài Node.js 20
+- ✅ Thiết lập Swap 1GB
+- ✅ Clone repository
+- ✅ Build ứng dụng
+- ✅ Cấu hình Nginx
+- ✅ Deploy và chạy
+
+**Thời gian:** ~3-5 phút
+
+**Hỗ trợ OS:**
+- Ubuntu 22.04/24.04 LTS
+- Debian 11/12
+
+Sau khi chạy xong, truy cập: `http://IP-CUA-VPS`
+
+---
+
+## 🛠️ Hoặc Cài Đặt Thủ Công
+
+### Bước 1: Chuẩn bị VPS
 
 ### 1.1 Update hệ thống
 
@@ -268,9 +305,10 @@ sudo ufw allow 'Nginx Full'
 
 ## ✅ Checklist
 
-- [ ] VPS Ubuntu 22.04 đã update
-- [ ] Node.js 20 đã cài đặt
-- [ ] Swap 1GB đã thiết lập
+- [ ] VPS với OS được hỗ trợ (Ubuntu 22/24 hoặc Debian 11/12)
+- [ ] Hệ thống đã update (`apt update && apt upgrade`)
+- [ ] Node.js 20 đã cài đặt (`node -v`)
+- [ ] Swap 1GB đã thiết lập (`free -h`)
 - [ ] Repository đã clone
 - [ ] Build thành công (`dist/` folder tồn tại)
 - [ ] Nginx đã cài đặt và config

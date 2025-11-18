@@ -2,7 +2,8 @@
 
 # ============================================
 # Auto Install Script - Text to Speech App
-# VPS Ubuntu 22 (1CPU-1GB)
+# Hỗ trợ: Ubuntu 22/24 LTS & Debian 11/12
+# VPS 1CPU-1GB RAM (tối thiểu)
 # ============================================
 
 set -e
@@ -12,7 +13,42 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
+
+# Detect OS
+detect_os() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS=$NAME
+        OS_VERSION=$VERSION_ID
+    elif [ -f /etc/debian_version ]; then
+        OS="Debian"
+        OS_VERSION=$(cat /etc/debian_version)
+    else
+        OS="Unknown"
+        OS_VERSION="Unknown"
+    fi
+
+    # Normalize OS name
+    case "$OS" in
+        *Ubuntu*)
+            OS_TYPE="ubuntu"
+            OS_NAME="Ubuntu"
+            ;;
+        *Debian*)
+            OS_TYPE="debian"
+            OS_NAME="Debian"
+            ;;
+        *)
+            OS_TYPE="unsupported"
+            OS_NAME="$OS"
+            ;;
+    esac
+}
+
+# Run detection
+detect_os
 
 # Configuration
 REPO_URL="https://github.com/AnhTuanIPV62025/voiiiiiiivoiiiiiiivoiiiiiiivoiiiiiiivoiiiiiii.git"
@@ -23,9 +59,18 @@ TEMP_DIR="/tmp/tts-app-install"
 
 echo -e "${BLUE}╔════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║   Text-to-Speech App - Auto Installer        ║${NC}"
-echo -e "${BLUE}║   VPS Ubuntu 22 | 1CPU-1GB RAM                ║${NC}"
+echo -e "${BLUE}║   Ubuntu 22/24 | Debian 11/12 | 1CPU-1GB      ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════╝${NC}"
 echo ""
+echo -e "${CYAN}🔍 Phát hiện hệ điều hành: ${GREEN}${OS_NAME} ${OS_VERSION}${NC}"
+echo ""
+
+# Check if OS is supported
+if [ "$OS_TYPE" = "unsupported" ]; then
+    echo -e "${RED}❌ Hệ điều hành không được hỗ trợ: ${OS_NAME}${NC}"
+    echo -e "${YELLOW}Script này chỉ hỗ trợ Ubuntu 22/24 hoặc Debian 11/12${NC}"
+    exit 1
+fi
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
@@ -54,7 +99,13 @@ install_package() {
 
 # Step 1: Update system
 echo -e "${BLUE}[1/8]${NC} Cập nhật hệ thống..."
-apt-get update > /dev/null 2>&1
+if [ "$OS_TYPE" = "debian" ]; then
+    apt-get update > /dev/null 2>&1
+    # Debian: Install ca-certificates if needed for HTTPS
+    apt-get install -y ca-certificates > /dev/null 2>&1
+else
+    apt-get update > /dev/null 2>&1
+fi
 echo -e "${GREEN}✓ Hệ thống đã cập nhật${NC}"
 
 # Step 2: Install dependencies
@@ -66,7 +117,13 @@ install_package nginx
 # Step 3: Install Node.js 20
 echo -e "${BLUE}[3/8]${NC} Cài đặt Node.js 20..."
 if ! command -v node &> /dev/null || [ $(node -v | cut -d'v' -f2 | cut -d'.' -f1) -lt 20 ]; then
-    echo "  Downloading Node.js..."
+    echo "  Downloading Node.js setup script..."
+    # NodeSource script works for both Ubuntu and Debian
+    if [ "$OS_TYPE" = "debian" ]; then
+        echo "  Cài đặt cho Debian..."
+    else
+        echo "  Cài đặt cho Ubuntu..."
+    fi
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
     apt-get install -y nodejs > /dev/null 2>&1
     echo -e "${GREEN}✓ Node.js $(node -v) đã cài đặt${NC}"
@@ -196,7 +253,11 @@ echo -e "${GREEN}╔════════════════════
 echo -e "${GREEN}║          🎉 CÀI ĐẶT THÀNH CÔNG! 🎉           ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "${YELLOW}📊 Thông tin hệ thống:${NC}"
+echo -e "${YELLOW}💻 Hệ điều hành:${NC}"
+echo -e "   OS:         ${CYAN}${OS_NAME} ${OS_VERSION}${NC}"
+echo -e "   Type:       ${CYAN}${OS_TYPE}${NC}"
+echo ""
+echo -e "${YELLOW}📊 Thông tin phần mềm:${NC}"
 echo -e "   Node.js:    $(node -v)"
 echo -e "   NPM:        $(npm -v)"
 echo -e "   Swap:       $(free -h | grep Swap | awk '{print $2}')"
@@ -209,13 +270,14 @@ if [ -n "$ACTUAL_USER" ] && [ "$ACTUAL_USER" != "root" ]; then
 fi
 echo ""
 echo -e "${YELLOW}📁 Đường dẫn:${NC}"
-echo -e "   Web root:   $APP_DIR"
-echo -e "   Nginx config: $NGINX_CONFIG"
+echo -e "   Web root:      $APP_DIR"
+echo -e "   Nginx config:  $NGINX_CONFIG"
 echo ""
 echo -e "${YELLOW}🔧 Lệnh hữu ích:${NC}"
 echo -e "   Restart Nginx:     sudo systemctl restart nginx"
 echo -e "   Check Nginx logs:  sudo tail -f /var/log/nginx/access.log"
 echo -e "   Check memory:      free -h"
+echo -e "   Check disk:        df -h"
 echo ""
-echo -e "${GREEN}✨ Ứng dụng Text-to-Speech đã sẵn sàng sử dụng!${NC}"
+echo -e "${GREEN}✨ Ứng dụng Text-to-Speech đã sẵn sàng trên ${OS_NAME}!${NC}"
 echo ""
