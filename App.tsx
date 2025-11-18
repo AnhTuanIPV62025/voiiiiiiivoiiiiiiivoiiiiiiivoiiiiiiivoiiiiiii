@@ -13,6 +13,8 @@ import { Header } from './components/Header';
 import { VoiceSelector } from './components/VoiceSelector';
 import { ReadingStyleSelector } from './components/ReadingStyleSelector';
 import { Loader } from './components/Loader';
+import { ProgressBar } from './components/ProgressBar';
+import { AudioRecorder, downloadAudioBlob } from './services/recordingService';
 
 declare const mammoth: any;
 
@@ -31,7 +33,11 @@ const App: React.FC = () => {
     const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const [readingStyle, setReadingStyle] = useState<keyof typeof READING_STYLES>('news');
+    const [progress, setProgress] = useState<number>(0);
+    const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+    const [enableRecording, setEnableRecording] = useState<boolean>(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const recorderRef = useRef<AudioRecorder | null>(null);
 
     // Load available voices from browser
     useEffect(() => {
@@ -98,25 +104,73 @@ const App: React.FC = () => {
         setIsLoading(true);
         setIsSpeaking(true);
         setError(null);
+        setProgress(0);
+        setAudioBlob(null);
+
+        // Initialize recorder if recording is enabled
+        let recorder: AudioRecorder | null = null;
+        if (enableRecording) {
+            recorder = new AudioRecorder();
+            recorderRef.current = recorder;
+
+            const started = await recorder.startRecording();
+            if (!started) {
+                setError('Không thể bắt đầu ghi âm. Vui lòng cho phép trình duyệt ghi âm tab.');
+                setIsLoading(false);
+                setIsSpeaking(false);
+                return;
+            }
+        }
 
         try {
             // Sử dụng settings từ reading style đã chọn
             const styleSettings = READING_STYLES[readingStyle].settings;
-            await generateSpeech(text, selectedVoice, styleSettings);
+
+            await generateSpeech(text, selectedVoice, {
+                ...styleSettings,
+                onProgress: (percent) => {
+                    setProgress(percent);
+                }
+            });
+
+            // Stop recording and save audio
+            if (recorder) {
+                const blob = await recorder.stopRecording();
+                if (blob) {
+                    setAudioBlob(blob);
+                }
+            }
         } catch (err) {
             console.error("Error generating speech:", err);
             setError(err instanceof Error ? err.message : 'Đã xảy ra lỗi không xác định. Vui lòng thử lại.');
+
+            // Stop recording on error
+            if (recorder) {
+                await recorder.stopRecording();
+            }
         } finally {
             setIsLoading(false);
             setIsSpeaking(false);
         }
-    }, [text, selectedVoice, readingStyle, isLoading, isSpeaking]);
+    }, [text, selectedVoice, readingStyle, isLoading, isSpeaking, enableRecording]);
 
-    const handleStop = useCallback(() => {
+    const handleStop = useCallback(async () => {
         stopSpeech();
         setIsSpeaking(false);
         setIsLoading(false);
+
+        // Stop recording if active
+        if (recorderRef.current && recorderRef.current.isRecording()) {
+            await recorderRef.current.stopRecording();
+        }
     }, []);
+
+    const handleDownload = useCallback(() => {
+        if (audioBlob) {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            downloadAudioBlob(audioBlob, `speech-${timestamp}.webm`);
+        }
+    }, [audioBlob]);
 
     const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         if (e.target.value.length <= MAX_TEXT_LENGTH) {
@@ -308,6 +362,23 @@ const App: React.FC = () => {
 
                     <VoiceSelector voices={voices} selectedVoice={selectedVoice} onSelectVoice={setSelectedVoice} />
 
+                    {/* Recording Option */}
+                    <div className="flex items-center justify-center space-x-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <input
+                            type="checkbox"
+                            id="enableRecording"
+                            checked={enableRecording}
+                            onChange={(e) => setEnableRecording(e.target.checked)}
+                            className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 cursor-pointer"
+                        />
+                        <label htmlFor="enableRecording" className="text-sm font-medium text-blue-900 dark:text-blue-200 cursor-pointer select-none">
+                            🎙️ Ghi âm và tải về file audio (yêu cầu quyền ghi âm tab)
+                        </label>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <ProgressBar progress={progress} isActive={isSpeaking} label="Tiến trình chuyển đổi" />
+
                     <div className="flex flex-col items-center space-y-6">
                         <div className="flex gap-4">
                             <button
@@ -326,6 +397,19 @@ const App: React.FC = () => {
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" /></svg>
                                     Dừng
+                                </button>
+                            )}
+
+                            {/* Download Button - only show when audio is available */}
+                            {audioBlob && !isSpeaking && (
+                                <button
+                                    onClick={handleDownload}
+                                    className="flex items-center justify-center px-8 py-4 bg-green-600 text-white font-bold text-lg rounded-full hover:bg-green-700 transition-all duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-green-500/50 shadow-lg animate-pulse"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    Tải về Audio
                                 </button>
                             )}
                         </div>

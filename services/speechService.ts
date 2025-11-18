@@ -8,6 +8,7 @@ export interface SpeechOptions {
   rate?: number;
   pitch?: number;
   volume?: number;
+  onProgress?: (progress: number) => void; // Progress callback (0-100)
 }
 
 /**
@@ -74,8 +75,29 @@ export const generateSpeech = async (
       utterance.pitch = options.pitch || 1.0;
       utterance.volume = options.volume || 1.0;
 
+      // Track progress via boundary events (word/sentence boundaries)
+      if (options.onProgress) {
+        utterance.onboundary = (event) => {
+          // Calculate progress based on character index
+          const progress = Math.round((event.charIndex / text.length) * 100);
+          options.onProgress!(Math.min(100, progress));
+        };
+
+        // Initial progress
+        options.onProgress(0);
+      }
+
       // Handle events
+      utterance.onstart = () => {
+        if (options.onProgress) {
+          options.onProgress(5); // Show initial progress when starting
+        }
+      };
+
       utterance.onend = () => {
+        if (options.onProgress) {
+          options.onProgress(100); // Complete
+        }
         resolve();
       };
 
