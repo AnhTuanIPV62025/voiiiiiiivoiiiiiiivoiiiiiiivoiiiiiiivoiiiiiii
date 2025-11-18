@@ -8,6 +8,9 @@
 
 set -e
 
+# Non-interactive mode để tránh prompts
+export DEBIAN_FRONTEND=noninteractive
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -88,12 +91,26 @@ fi
 # Function: Check and install package
 install_package() {
     PACKAGE=$1
-    if ! command -v $PACKAGE &> /dev/null; then
-        echo -e "${YELLOW}📦 Cài đặt $PACKAGE...${NC}"
-        apt-get install -y $PACKAGE > /dev/null 2>&1
-        echo -e "${GREEN}✓ $PACKAGE đã cài đặt${NC}"
-    else
+
+    # Check if package is installed using dpkg
+    if dpkg -l | grep -q "^ii  $PACKAGE "; then
         echo -e "${GREEN}✓ $PACKAGE đã có sẵn${NC}"
+        return 0
+    fi
+
+    # Try to install package
+    echo -e "${YELLOW}📦 Cài đặt $PACKAGE...${NC}"
+
+    # Run apt-get with output redirect
+    if apt-get install -y $PACKAGE > /tmp/install-$PACKAGE.log 2>&1; then
+        echo -e "${GREEN}✓ $PACKAGE đã cài đặt${NC}"
+        rm -f /tmp/install-$PACKAGE.log
+        return 0
+    else
+        echo -e "${RED}❌ Lỗi khi cài $PACKAGE${NC}"
+        echo -e "${YELLOW}Chi tiết lỗi:${NC}"
+        tail -20 /tmp/install-$PACKAGE.log
+        return 1
     fi
 }
 
@@ -110,9 +127,9 @@ echo -e "${GREEN}✓ Hệ thống đã cập nhật${NC}"
 
 # Step 2: Install dependencies
 echo -e "${BLUE}[2/8]${NC} Cài đặt dependencies..."
-install_package curl
-install_package git
-install_package nginx
+install_package curl || { echo -e "${RED}Không thể cài curl${NC}"; exit 1; }
+install_package git || { echo -e "${RED}Không thể cài git${NC}"; exit 1; }
+install_package nginx || { echo -e "${RED}Không thể cài nginx${NC}"; exit 1; }
 
 # Step 3: Install Node.js 20
 echo -e "${BLUE}[3/8]${NC} Cài đặt Node.js 20..."
