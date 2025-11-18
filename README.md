@@ -45,11 +45,33 @@ npm run preview
 
 ## 🌐 Deploy lên Web
 
-Ứng dụng có thể deploy lên các nền tảng:
-- **Vercel** (khuyên dùng)
-- **Netlify**
-- **GitHub Pages**
-- **Cloudflare Pages**
+### 🚀 Deploy VPS Ubuntu 22 - Chỉ 1 lệnh!
+
+**Cài đặt tự động trên VPS (1CPU-1GB RAM):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AnhTuanIPV62025/voiiiiiiivoiiiiiiivoiiiiiiivoiiiiiiivoiiiiiii/claude/adapt-code-web-01QBd2N1xScVK2PHF8CtpxsK/install.sh | sudo bash
+```
+
+Script tự động thực hiện:
+- ✅ Cài đặt Node.js 20 + Nginx
+- ✅ Thiết lập Swap 1GB (quan trọng!)
+- ✅ Clone repo & build ứng dụng
+- ✅ Cấu hình Nginx với Gzip
+- ✅ Khởi chạy website
+
+**Sau khi hoàn tất (~2-3 phút):**
+- Truy cập: `http://IP-CUA-VPS`
+- Web root: `/var/www/tts-app`
+
+📖 **Hướng dẫn chi tiết:** [DEPLOY_VPS.md](DEPLOY_VPS.md)
+
+### Deploy nền tảng khác
+
+- **Vercel** - Khuyên dùng cho Serverless
+- **Netlify** - Drag & drop dist/
+- **GitHub Pages** - Free static hosting
+- **Cloudflare Pages** - Fast CDN
 
 ## 🔧 Công nghệ sử dụng
 

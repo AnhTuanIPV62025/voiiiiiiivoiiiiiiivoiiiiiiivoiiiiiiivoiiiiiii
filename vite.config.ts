@@ -17,5 +17,18 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
     minify: 'esbuild',
+    // Tối ưu cho VPS cấu hình thấp (1CPU-1GB RAM)
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+        },
+      },
+    },
+  },
+  // Tối ưu cache và dependencies
+  optimizeDeps: {
+    include: ['react', 'react-dom'],
   }
 });
