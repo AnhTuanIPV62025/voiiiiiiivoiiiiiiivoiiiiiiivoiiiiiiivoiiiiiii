@@ -1,9 +1,17 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { generateSpeech, getAvailableVoices, stopSpeech } from './services/speechService';
-import { Voice, DEFAULT_TEXT, SPEECH_SETTINGS } from './constants';
+import {
+    Voice,
+    DEFAULT_TEXT,
+    DEFAULT_SPEECH_SETTINGS,
+    READING_STYLES,
+    isSupportedLanguage,
+    categorizeVietnameseVoice
+} from './constants';
 import { Header } from './components/Header';
 import { VoiceSelector } from './components/VoiceSelector';
+import { ReadingStyleSelector } from './components/ReadingStyleSelector';
 import { Loader } from './components/Loader';
 
 declare const mammoth: any;
@@ -22,6 +30,7 @@ const App: React.FC = () => {
     const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
     const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
     const [isDragging, setIsDragging] = useState<boolean>(false);
+    const [readingStyle, setReadingStyle] = useState<keyof typeof READING_STYLES>('news');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Load available voices from browser
@@ -29,24 +38,42 @@ const App: React.FC = () => {
         const loadVoices = async () => {
             try {
                 const browserVoices = await getAvailableVoices();
-                const voiceList: Voice[] = browserVoices.map(v => ({
-                    id: v.name,
-                    name: v.name,
-                    description: `${v.lang} - ${v.localService ? 'Local' : 'Online'}`,
-                    lang: v.lang,
-                    isDefault: v.default
-                }));
 
-                // Prioritize Vietnamese voices
+                // Filter chỉ giữ 4 ngôn ngữ: Việt, Anh, Trung, Nhật
+                const filtered = browserVoices.filter(v => isSupportedLanguage(v.lang || ''));
+
+                const voiceList: Voice[] = filtered.map(v => {
+                    const isVietnamese = v.lang?.startsWith('vi');
+                    const voice: Voice = {
+                        id: v.name,
+                        name: v.name,
+                        description: `${v.lang} - ${v.localService ? 'Local' : 'Online'}`,
+                        lang: v.lang,
+                        isDefault: v.default,
+                        gender: v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('nữ') ? 'female' : 'male',
+                    };
+
+                    // Categorize Vietnamese voices by region
+                    if (isVietnamese) {
+                        voice.region = categorizeVietnameseVoice(v.name);
+                    }
+
+                    return voice;
+                });
+
+                // Prioritize Vietnamese voices, then English, Chinese, Japanese
                 const viVoices = voiceList.filter(v => v.lang?.startsWith('vi'));
-                const otherVoices = voiceList.filter(v => !v.lang?.startsWith('vi'));
-                const sortedVoices = [...viVoices, ...otherVoices];
+                const enVoices = voiceList.filter(v => v.lang?.startsWith('en'));
+                const zhVoices = voiceList.filter(v => v.lang?.startsWith('zh'));
+                const jaVoices = voiceList.filter(v => v.lang?.startsWith('ja'));
+
+                const sortedVoices = [...viVoices, ...enVoices, ...zhVoices, ...jaVoices];
 
                 setVoices(sortedVoices);
 
-                // Set default voice
+                // Set default voice (prefer Vietnamese)
                 if (sortedVoices.length > 0) {
-                    const defaultVoice = sortedVoices.find(v => v.isDefault) || sortedVoices[0];
+                    const defaultVoice = viVoices[0] || sortedVoices.find(v => v.isDefault) || sortedVoices[0];
                     setSelectedVoice(defaultVoice.id);
                 }
             } catch (err) {
@@ -73,7 +100,9 @@ const App: React.FC = () => {
         setError(null);
 
         try {
-            await generateSpeech(text, selectedVoice, SPEECH_SETTINGS);
+            // Sử dụng settings từ reading style đã chọn
+            const styleSettings = READING_STYLES[readingStyle].settings;
+            await generateSpeech(text, selectedVoice, styleSettings);
         } catch (err) {
             console.error("Error generating speech:", err);
             setError(err instanceof Error ? err.message : 'Đã xảy ra lỗi không xác định. Vui lòng thử lại.');
@@ -81,7 +110,7 @@ const App: React.FC = () => {
             setIsLoading(false);
             setIsSpeaking(false);
         }
-    }, [text, selectedVoice, isLoading, isSpeaking]);
+    }, [text, selectedVoice, readingStyle, isLoading, isSpeaking]);
 
     const handleStop = useCallback(() => {
         stopSpeech();
@@ -274,7 +303,9 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                    
+
+                    <ReadingStyleSelector selectedStyle={readingStyle} onSelectStyle={setReadingStyle} />
+
                     <VoiceSelector voices={voices} selectedVoice={selectedVoice} onSelectVoice={setSelectedVoice} />
 
                     <div className="flex flex-col items-center space-y-6">
